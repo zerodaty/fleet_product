@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+
+        <!-- Producto 1: Aceite de Motor -->
+        <record id="product_aceite_motor_template" model="product.template">
+            <field name="name">Aceite de Motor</field>
+            <field name="type">consu</field> <!-- Consumible -->
+            <field name="categ_id" ref="product_category_automotriz"/>
+            <field name="list_price">100</field> 
+            <field name="standard_price">50</field> 
+            <field name="sale_line_warn">no-message</field>
+            <field name="image_1920" type="base64" file="fleet_product/static/images/aceite.png"/>
+        </record>
+
+        <!-- Producto 2: Filtro de Aire -->
+        <record id="product_filtro_aire_template" model="product.template">
+            <field name="name">Filtro de Aire</field>
+            <field name="type">consu</field>
+            <field name="categ_id" eval="product_category_automotriz"/> 
+            <field name="list_price">150</field> 
+            <field name="standard_price">70</field> 
+            <field name="sale_line_warn">no-message</field> 
+            <field name="image_1920" type="base64" file= "fleet_product/static/images/filtro.jpeg"/>
+        </record> 
+
+        <!-- Producto 3: Bujías -->
+        <record id="product_bujias_template" model="product.template">
+            <field name="name">Bujías</field>
+            <field name="type">consu</field>
+            <field name="categ_id" eval="product_category_automotriz"/>
+            <field name="list_price">80</field> 
+            <field name="standard_price">40</field>
+            <field name="sale_line_warn">no-message</field> 
+            <field name="image_1920" type="base64" file= "fleet_product/static/images/bujia.jpg"/>
+        </record>
+
+        <!-- lo que agregue -->
+        <record id="product_caucho_template" model="product.template">
+            <field name="name">Caucho de Auto</field>
+            <field name="type">consu</field>
+            <field name="categ_id" eval="product_category_automotriz"/>
+            <field name="list_price">300</field>
+            <field name="standard_price">150</field>
+            <field name="sale_line_warn">no-message</field>
+            <field name="image_1920" type="base64" file= "fleet_product/static/images/caucho.jpg"/>
+            </record>
+
+        <record id="product_rin_template" model="product.template">
+            <field name="name">RIN de auto</field>
+            <field name="type">consu</field>
+            <field name="categ_id" eval="product_category_automotriz"/>
+            <field name="list_price">120</field>
+            <field name="standard_price">60</field>
+            <field name="sale_line_warn">no-message</field>
+            <field name="image_1920" type="base64" file= "fleet_product/static/images/rin.png"/>
+            </record>
+
+        <record id="product_bateria_template" model="product.template">
+            <field name="name">Batería</field>
+            <field name="type">consu</field>
+            <field name="categ_id" eval="product_category_automotriz"/>
+            <field name="list_price">250</field>
+            <field name="standard_price">125</field>
+            <field name="sale_line_warn">no-message</field>
+            <field name="image_1920" type="base64" file= "fleet_product/static/images/bateria.jpg"/>
+            </record>
+
+        <record id="product_parabrisas_template" model="product.template">
+            <field name="name">Parabrisas</field>
+            <field name="type">consu</field>
+            <field name="categ_id" eval="product_category_automotriz"/>
+            <field name="list_price">250</field>
+            <field name="standard_price">125</field>
+            <field name="sale_line_warn">no-message</field>
+            <field name="image_1920" type="base64" file= "fleet_product/static/images/limpiaparabrisas.png"/>
+            </record>
+
+    </data>
+</odoo>

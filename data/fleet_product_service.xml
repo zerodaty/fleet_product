@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+
+        <record id="product_category_workshop_services" model="product.category">
+            <field name="name">Servicios de Taller</field>
+            <field name="parent_id" ref="fleet_product.product_category_automotriz"/>
+        </record>
+
+        <record id="product_template_labor" model="product.template">
+            <field name="name">Mano de Obra de Taller</field>
+            <field name="standard_price">0.0</field>
+            <field name="list_price">0.0</field>
+            <field name="type">service</field>
+            <field name="invoice_policy">order</field>
+            <field name="sale_ok" eval="True"/>
+            <field name="purchase_ok" eval="False"/>
+            <field name="categ_id" eval="product_category_workshop_services"/>
+            <field name="description">Producto utilizado para un servicio de flota.</field>
+            <field name="image_1920" type="base64" file= "fleet_product/static/images/serviciotaller.jpg"/>
+        </record>
+
+        <record id="product_template_insurance_adjustment" model="product.template">
+            <field name="name">Ajuste por Cobertura de Seguro</field>
+            <field name="list_price">0.0</field>
+            <field name="type">service</field>
+            <field name="sale_ok" eval="True"/>
+            <field name="purchase_ok" eval="False"/>
+            <field name="categ_id" eval="product_category_workshop_services"/>
+            <field name="description">Producto utilizado para aplicar descuentos en Pedidos de Venta por el monto cubierto por una póliza de seguro en un servicio de flota.</field>
+            <field name="image_1920" type="base64" file= "fleet_product/static/images/serviciotaller.jpg"/>
+        </record>
+
+        <record id="product_template_insurance_coverage" model="product.template">
+            <field name="name">Ajuste por Cobertura de Seguro</field>
+            <field name="list_price">0.0</field>
+            <field name="type">service</field>
+            <field name="sale_ok" eval="True"/>
+            <field name="purchase_ok" eval="False"/>
+            <field name="categ_id" eval="product_category_workshop_services"/>
+            <field name="description">Producto utilizado para aplicar cobro de la póliza de seguro en un servicio de flota.</field>
+            <field name="image_1920" type="base64" file= "fleet_product/static/images/seguro_cobertura_auto.jpg"/>
+        </record>
+    </data>
+</odoo>

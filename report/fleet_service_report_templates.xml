@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="action_report_fleet_service" model="ir.actions.report">
+        <field name="name">Reporte de Servicio</field>
+        <field name="model">fleet.vehicle.log.services</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">fleet_product.report_fleet_service_document</field>
+        <field name="report_file">fleet_product.report_fleet_service_document</field>
+         <field name="print_report_name">'Reporte de Servicio - %s' % (object.vehicle_id.name)</field>
+        <field name="binding_model_id" ref="fleet.model_fleet_vehicle_log_services"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_fleet_service_document">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <div class="oe_structure"/>
+                        
+                        <h2>Servicio: <span t-field="doc.description"/></h2>
+                        
+                        <div class="row mt32 mb32">
+                            <div class="col-6">
+                                <strong>Vehículo:</strong> <span t-field="doc.vehicle_id.name"/><br/>
+                                <strong>Cliente:</strong> <span t-field="doc.purchaser_id.name"/>
+                            </div>
+                            <div class="col-6 text-end">
+                                <strong>Fecha del Servicio:</strong> <span t-field="doc.date"/><br/>
+                                <t if="doc.sale_order_id">
+                                    <strong>Presupuesto Relacionado:</strong> <span t-field="doc.sale_order_id.name"/>
+                                </t>
+                            </div>
+                        </div>
+
+                        <!-- Tabla de Productos Utilizados -->
+                        <h3>Productos y Repuestos</h3>
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Producto</th>
+                                    <th class="text-end">Cantidad</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr t-foreach="doc.product_line_ids" t-as="line">
+                                    <td><span t-field="line.product_id.name"/></td>
+                                    <td class="text-end"><span t-field="line.quantity"/></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        
+                        <!-- Sección de Resumen de Costos -->
+                        <div class="row justify-content-end">
+                            <div class="col-4">
+                                <h3>Resumen Financiero</h3>
+                                <table class="table table-sm">
+                                    <tr>
+                                        <td><strong>Mano de Obra</strong></td>
+                                        <td class="text-end"><span t-field="doc.labor_cost" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Costo de Productos</strong></td>
+                                        <td class="text-end"><span t-field="doc.parts_cost" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                    </tr>
+                                    <tr t-if="doc.insurance_coverage_amount > 0">
+                                        <td><strong>Cobertura de Seguro</strong></td>
+                                        <td class="text-end">- <span t-field="doc.insurance_coverage_amount" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                    </tr>
+                                    <tr class="border-black">
+                                        <td><strong>Total Cliente</strong></td>
+                                        <td class="text-end"><span t-field="doc.net_cost" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/></td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Campo de Notas -->
+                        <div t-if="doc.notes">
+                            <h4>Notas Adicionales</h4>
+                            <p t-field="doc.notes"/>
+                        </div>
+
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+</odoo>

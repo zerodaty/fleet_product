@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <data noupdate="1">
+
+        <record id="product_category_automotriz" model="product.category">
+            <field name="name">Automotriz</field>
+            <field name="parent_id" ref="product.product_category_all"/>
+            <!-- Asocia esta categoría a la categoría principal "All" -->
+        </record>
+
+        <record id="product_category_lubricantes" model="product.category">
+            <field name="name">Lubricantes</field>
+            <field name="parent_id" ref="product_category_automotriz"/>
+            <!-- Subcategoría dentro de Automotriz -->
+        </record>
+
+        <record id="product_category_refacciones" model="product.category">
+            <field name="name">Refacciones</field>
+            <field name="parent_id" ref="product_category_automotriz"/>
+            <!-- Subcategoría dentro de Automotriz -->
+        </record>
+
+    </data>
+</odoo>
