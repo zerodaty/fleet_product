@@ -2,10 +2,33 @@ from odoo import models, fields, api
 
 class FleetVehicle(models.Model):
     _inherit = 'fleet.vehicle'
+    
+    # --- CAMPOS PARA CONTRATOS ---
+    maintenance_contract_id = fields.Many2one(
+        'account.analytic.account',
+        string='Plan de Mantenimiento',
+        tracking=True,
+        # El dominio ayuda a los usuarios a seleccionar solo contratos relevantes
+        domain="[('partner_id', '=', customer_id)]"
+    )
+    
+    # --- CAMPOS DE CLIENTE ---
+    customer_id = fields.Many2one(
+        'res.partner',
+        string='Propietario / Cliente',
+        tracking=True
+    )
 
     # --- CAMPOS DE SEGUROS ---
-    insurance_policy_ids = fields.One2many('fleet.vehicle.insurance', 'vehicle_id', string='Pólizas de Seguro')
-    has_active_policies = fields.Boolean(string="¿Tiene Pólizas Activas?", compute='_compute_has_active_policies')
+    insurance_policy_ids = fields.One2many(
+        'fleet.vehicle.insurance',
+        'vehicle_id',
+        string='Pólizas de Seguro'
+    )
+    has_active_policies = fields.Boolean(
+        string="¿Tiene Pólizas Activas?",
+        compute='_compute_has_active_policies'
+    )
 
     # --- CAMPOS PARA KANBAN DE TALLER (CAMBIOS PROPIOS) ---
     def _get_default_operational_state_id(self):
@@ -21,7 +44,7 @@ class FleetVehicle(models.Model):
         tracking=True,
         copy=False
     )
-    service_count = fields.Integer(compute="_compute_service_count", string="Servicios Activos")
+    active_service_count = fields.Integer(compute="_compute_active_service_count", string="Servicios Activos")
     
     # Pa las estrellitas
     
@@ -56,13 +79,13 @@ class FleetVehicle(models.Model):
 
 
     # METODO PARA VAINA KANBAN (CAMBIOS PROPIOS)
-
-    def _compute_service_count(self):
+    @api.depends('log_services.state')
+    def _compute_active_service_count(self):
         """ Cuenta los servicios que están en estado 'Nuevo' o 'En Curso'. """
         for vehicle in self:
-            vehicle.service_count = self.env['fleet.vehicle.log.services'].search_count([
+            vehicle.active_service_count = self.env['fleet.vehicle.log.services'].search_count([
                 ('vehicle_id', '=', vehicle.id),
-                ('state', 'in', ['new', 'running'])
+                ('state', 'in', ['new', 'running']) 
             ])
 
     def action_open_services(self):
@@ -102,4 +125,5 @@ class FleetVehicle(models.Model):
             else:
                 # Si no hay servicios activos con fecha, el campo se queda vacío
                 vehicle.next_delivery_date = False
+    
     

@@ -17,7 +17,7 @@
         'website': "https://github.com/zerodaty",
         'category': 'Services',
         'version': '5.0',
-        'depends': ['base','fleet','account','product','sale','contacts','account_fleet','account_disallowed_expenses_fleet'],
+        'depends': ['base','fleet','product','sale','contacts','analytic'],
 
         'data': [
             'security/ir.model.access.csv',

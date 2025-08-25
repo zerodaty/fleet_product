@@ -88,6 +88,7 @@ class FleetVehicleLogServices(models.Model):
     
     
     
+    
     #Replantear la logica de relacion de auto a conductor pa que sea de conductor a autos
     
     @api.onchange('purchaser_id')
@@ -146,15 +147,6 @@ class FleetVehicleLogServices(models.Model):
         tracking=True,  # Es útil ver si la fecha prometida cambia
         default=fields.Date.context_today
     )
-    
-    # --- Funciones de Cálculo ---
-    @api.depends('product_line_ids.price_subtotal')
-    def _compute_parts_cost(self):
-        """
-        Suma los subtotales de todas las líneas de producto. 
-        """
-        for service in self:
-            service.parts_cost = sum(line.price_subtotal for line in service.product_line_ids)
 
     @api.depends('labor_cost', 'parts_cost')
     def _compute_total_cost(self):
@@ -304,6 +296,14 @@ class FleetVehicleLogServices(models.Model):
         # NO RETORNAMOS NINGUNA ACCIÓN. El framework de Odoo simplemente recargará la vista.
         return True
     
+    
+    @api.onchange('vehicle_id')
+    def _onchange_vehicle_id_set_contacts(self):
+        # Cuando selecciono un vehículo, automáticamente propongo su conductor principal como el contacto del servicio.
+        if self.vehicle_id:
+            self.purchaser_id = self.vehicle_id.driver_id
+        else:
+            self.purchaser_id = False
         
     #-------------------------------------------
     # Nuevos Metodos para el 5.0 MODIFICACIONES 
@@ -312,7 +312,10 @@ class FleetVehicleLogServices(models.Model):
         """ Cambia el estado del servicio a 'En Curso'. """
         self.ensure_one()
         self.write({'state': 'running'})
-        return True # Devuelve True para confirmar que la acción se completó
+        if self.vehicle_id.operational_state_id.id == self.env.ref('fleet_product.fleet_vehicle_state_available').id:
+            state_in_workshop = self.env.ref('fleet_product.fleet_vehicle_state_in_workshop')
+            self.vehicle_id.write({'operational_state_id': state_in_workshop.id})
+        return True
 
     def action_done(self):
         """ Finaliza el servicio. """
@@ -321,9 +324,12 @@ class FleetVehicleLogServices(models.Model):
         if not self.sale_order_id:
             # Aquí podríamos crear un wizard, pero para empezar, un UserError es más rápido y cumple la función.
             raise UserError("No se puede finalizar este servicio. Primero debe generar el 'Presupuesto' para el cliente.")
-        
         self.write({'state': 'done'})
+        if self.vehicle_id.operational_state_id.id == self.env.ref('fleet_product.fleet_vehicle_state_available').id:
+            state_in_workshop = self.env.ref('fleet_product.fleet_vehicle_state_in_workshop')
+            self.vehicle_id.write({'operational_state_id': state_in_workshop.id})
         return True
+        
 
     def action_cancel(self):
         """ Cancela el servicio y los documentos asociados. """
@@ -354,6 +360,9 @@ class FleetVehicleLogServices(models.Model):
     
         # --- MÉTODO PARA EL BOTÓN INTELIGENTE M 5.0---
     def action_view_sale_orders(self):
+        '''
+        Función para mostrar los pedidos de venta generados por el servicio
+        '''
         self.ensure_one()
         
         # Recopilamos los IDs de los pedidos de venta existentes
@@ -368,3 +377,40 @@ class FleetVehicleLogServices(models.Model):
             'domain': domain,
             'target': 'current',
         }
+        
+    # Metodo para evitar que se pueda mofidicar un servicio ya finalizado o cancelado
+    def write(self, vals):
+        '''
+        Función para evitar que se pueda modificar un servicio ya finalizado o cancelado
+        '''
+        # Primero, revisamos si se permite la edición en alguno de los registros
+        for service in self:
+            if service.state in ['done', 'cancelled']:
+                raise UserError("Acción no permitida: No se puede modificar un servicio que ya ha sido finalizado o cancelado.")
+    
+        # Si pasamos la validación, llamamos al método original para que guarde los cambios
+        return super(FleetVehicleLogServices, self).write(vals)
+    
+    
+    # --- CAMPO DE CONTRATO PARA MANTENIMIENTO ---
+    # Este campo permite vincular un contrato de mantenimiento específico al servicio. 
+    contract_id = fields.Many2one(
+        'account.analytic.account',
+        string='Contrato Aplicado',
+        tracking=True,
+        # El dominio asegura que solo podamos elegir contratos del cliente del vehículo
+        domain="[('partner_id', '=', vehicle_id.customer_id)]"
+    )
+    
+    # AÑADIMOS O MODIFICAMOS EL ONCHANGE EXISTENTE
+    @api.onchange('vehicle_id')
+    def _onchange_vehicle_id_set_contacts_and_contract(self):
+        if self.vehicle_id:
+            # Lógica existente: proponer el contacto
+            self.purchaser_id = self.vehicle_id.driver_id
+            
+            # NUEVA LÓGICA: proponer el plan de mantenimiento
+            self.contract_id = self.vehicle_id.maintenance_contract_id
+        else:
+            self.purchaser_id = False
+            self.contract_id = False

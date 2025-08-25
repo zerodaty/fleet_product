@@ -9,10 +9,11 @@
 
             <!-- BLOQUEO DEL FORMULARIO UNA VEZ CREADO EL PRESUPUESTO == FALTA IMPLEMENTAR == -->
 
-
+            
             <!-- Arreglitos sencillos pal form MODOFICACION 1.0 agregar fotico y el domain-->
 
             <xpath expr="//field[@name='purchaser_id']" position="attributes">
+                <attribute name="string">Contacto del Servicio</attribute>
                 <attribute name="invisible">1</attribute>
             </xpath>
             
@@ -23,6 +24,7 @@
             <xpath expr="//field[@name='vehicle_id']" position="before">
                 <field name="purchaser_id" widget="many2one_avatar"/>
             </xpath>
+            
             <!--
                 AÑADIR EL CONTENEDOR PARA LOS BOTONES INTELIGENTES
                 Lo insertamos justo al inicio del <sheet>
@@ -121,6 +123,17 @@
         <field name="arch" type="xml">
             <xpath expr="//field[@name='service_type_id']" position="after">
                 <field name="service_classification" optional="show" widget="badge"/>
+            </xpath>
+        </field>
+    </record>
+    <record id="view_fleet_vehicle_log_services_form_inherit_contract" model="ir.ui.view">
+        <field name="name">fleet.vehicle.log.services.form.inherit.contract</field>
+        <field name="model">fleet.vehicle.log.services</field>
+        <field name="inherit_id" ref="fleet_product.view_fleet_vehicle_log_services_extend_form_inherit"/>
+        <field name="arch" type="xml">
+            <!-- Añadimos el campo de contrato dentro de la sección de Seguros para agruparlo todo -->
+            <xpath expr="//group[@name='insurance_details']" position="inside">
+                <field name="contract_id"/>
             </xpath>
         </field>
     </record>
