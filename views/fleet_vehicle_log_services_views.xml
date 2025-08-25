@@ -100,18 +100,6 @@
                     <field name="net_cost" readonly="1" force_save="1"/>
                 </group>
             </xpath>
-
-            <!-- 
-            
-            RETIRADO pero por si a las moscas ta aqui
-
-            6. Enlace visible al Pedido de Venta 
-            <xpath expr="//field[@name='vehicle_id']" position="after">
-                <field name="sale_order_id" readonly="1" invisible="sale_order_id == False"/>
-            </xpath>
-            -->
-
-
         </field>
     </record>
 
@@ -134,6 +122,7 @@
             <!-- Añadimos el campo de contrato dentro de la sección de Seguros para agruparlo todo -->
             <xpath expr="//group[@name='insurance_details']" position="inside">
                 <field name="contract_id"/>
+                <fiel name="analytic_account_id" invisible="1"/>
             </xpath>
         </field>
     </record>

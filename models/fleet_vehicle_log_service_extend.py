@@ -377,18 +377,85 @@ class FleetVehicleLogServices(models.Model):
             'domain': domain,
             'target': 'current',
         }
+    # SOBRESCRIBIMOS EL MÉTODO DE CREACIÓN
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            # Si se está creando un servicio CON un vehículo...
+            if 'vehicle_id' in vals:
+                vehicle = self.env['fleet.vehicle'].browse(vals['vehicle_id'])
+                last_odometer = vehicle.odometer
+                new_odometer_val = vals.get('odometer', 0)
+
+                # 1. Validación: El nuevo valor no puede ser menor que el último.
+                if new_odometer_val < last_odometer:
+                    raise UserError(
+                        "Error: El valor del odómetro introducido (%s %s) es inferior al último valor registrado para este vehículo (%s %s)." %
+                        (new_odometer_val, vehicle.odometer_unit, last_odometer, vehicle.odometer_unit)
+                    )
+
+                # 2. Replicamos la lógica del 'inverse': creamos el registro de odómetro.
+                # Odoo espera un 'odometer_id', no un 'odometer'.
+                if 'odometer' in vals:
+                    odometer_log = self.env['fleet.vehicle.odometer'].create({
+                        'value': new_odometer_val,
+                        'date': vals.get('date', fields.Date.context_today(self)),
+                        'vehicle_id': vehicle.id
+                    })
+                    # Reemplazamos el float por el ID del registro que acabamos de crear.
+                    vals['odometer_id'] = odometer_log.id
+                    # Borramos la clave original para no confundir al ORM.
+                    del vals['odometer']
+
+        # Llamamos al método de creación original con los valores ya procesados.
+        return super().create(vals_list)
+
+
+    # SOBRESCRIBIMOS EL MÉTODO DE ESCRITURA (EDICIÓN)
+    def write(self, vals):
+        # La misma lógica, pero para cuando se edita un registro existente.
+        if 'odometer' in vals and self.vehicle_id:
+            last_odometer = self.vehicle_id.odometer
+            new_odometer_val = vals['odometer']
+            
+            # 1. Validación
+            if new_odometer_val < last_odometer:
+                # Comparamos con el penúltimo registro, porque el 'last_odometer' puede ser el que estamos editando
+                previous_omdometers = self.env['fleet.vehicle.odometer'].search([('vehicle_id', '=', self.vehicle_id.id)], limit=2, order='value desc')
+                if len(previous_omdometers) > 1 and new_odometer_val < previous_omdometers[1].value:
+                     raise UserError(
+                        "Error: El valor del odómetro introducido (%s %s) es inferior a un registro anterior para este vehículo (%s %s)." %
+                        (new_odometer_val, self.odometer_unit, previous_omdometers[1].value, self.odometer_unit)
+                    )
+
+            # 2. Replicamos la lógica del 'inverse'
+            if self.odometer != new_odometer_val:
+                odometer_log = self.env['fleet.vehicle.odometer'].create({
+                    'value': new_odometer_val,
+                    'date': vals.get('date', self.date),
+                    'vehicle_id': self.vehicle_id.id
+                })
+                vals['odometer_id'] = odometer_log.id
+                del vals['odometer']
         
     # Metodo para evitar que se pueda mofidicar un servicio ya finalizado o cancelado
     def write(self, vals):
-        '''
-        Función para evitar que se pueda modificar un servicio ya finalizado o cancelado
-        '''
-        # Primero, revisamos si se permite la edición en alguno de los registros
+        # Validación de readonly para servicios cerrados
         for service in self:
-            if service.state in ['done', 'cancelled']:
+            if service.state in ['done', 'cancelled'] and any(field in vals for field in ['vehicle_id', 'odometer', 'amount', 'labor_cost']):
                 raise UserError("Acción no permitida: No se puede modificar un servicio que ya ha sido finalizado o cancelado.")
-    
-        # Si pasamos la validación, llamamos al método original para que guarde los cambios
+
+        # Lógica de escritura del odómetro
+        if 'odometer' in vals and self.vehicle_id:
+            if self.odometer != vals['odometer']:
+                odometer_log = self.env['fleet.vehicle.odometer'].create({
+                    'value': vals['odometer'],
+                    'date': vals.get('date', self.date),
+                    'vehicle_id': self.vehicle_id.id
+                })
+                vals['odometer_id'] = odometer_log.id
+                del vals['odometer']
+        
         return super(FleetVehicleLogServices, self).write(vals)
     
     
@@ -401,16 +468,45 @@ class FleetVehicleLogServices(models.Model):
         # El dominio asegura que solo podamos elegir contratos del cliente del vehículo
         domain="[('partner_id', '=', vehicle_id.customer_id)]"
     )
+    analytic_account_id = fields.Many2one(
+        'account.analytic.account', 
+        string='Cuenta Analítica',
+        # Este campo debería ser de solo lectura para el usuario normal,
+        # ya que lo rellenaremos automáticamente.
+        readonly=True,
+        copy=False, # No queremos copiar la cuenta analítica al duplicar un servicio
+        help="Cuenta analítica vinculada al contrato aplicado, para seguimiento de costos."
+    )
     
-    # AÑADIMOS O MODIFICAMOS EL ONCHANGE EXISTENTE
     @api.onchange('vehicle_id')
     def _onchange_vehicle_id_set_contacts_and_contract(self):
         if self.vehicle_id:
             # Lógica existente: proponer el contacto
             self.purchaser_id = self.vehicle_id.driver_id
-            
-            # NUEVA LÓGICA: proponer el plan de mantenimiento
+
+            self.odometer = self.vehicle_id.odometer
+
+            # Lógica existente: proponer el plan de mantenimiento
             self.contract_id = self.vehicle_id.maintenance_contract_id
+    
+            # ¡NUEVA LÓGICA DE RENTABILIDAD!
+            # Copiamos el contrato a la cuenta analítica.
+            self.analytic_account_id = self.vehicle_id.maintenance_contract_id
+            
         else:
             self.purchaser_id = False
             self.contract_id = False
+            self.analytic_account_id = False # Limpiamos también este campo
+            
+    @api.constrains('odometer', 'vehicle_id')
+    def _check_odometer(self):
+        for service in self:
+            # Odoo ya calcula el último valor del odómetro en service.vehicle_id.odometer.
+            # Simplemente validamos que nuestro nuevo valor no sea menor.
+            # Añadimos una pequeña tolerancia (ej. 1 km) por si se trata de una corrección.
+            if service.vehicle_id and service.odometer < service.vehicle_id.odometer:
+                raise UserError(
+                    "Error: El valor del odómetro introducido (%s %s) es inferior al último valor registrado para este vehículo (%s %s)." % 
+                    (service.odometer, service.odometer_unit, service.vehicle_id.odometer, service.odometer_unit)
+                )
+            
