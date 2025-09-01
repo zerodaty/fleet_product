@@ -29,6 +29,15 @@ class FleetVehicle(models.Model):
         string="¿Tiene Pólizas Activas?",
         compute='_compute_has_active_policies'
     )
+    
+    
+    #Reescribir campo state_id 
+    state_id = fields.Many2one(
+        'fleet.vehicle.state',
+        string='State',
+        # Este domain se ejecuta en el servidor, que SÍ sabe cómo funcionan los modelos.
+        domain="[('is_workshop_state', '=', False)]"
+    )
 
     # --- CAMPOS PARA KANBAN DE TALLER (CAMBIOS PROPIOS) ---
     def _get_default_operational_state_id(self):

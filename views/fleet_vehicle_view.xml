@@ -52,8 +52,8 @@
     <field name="model">fleet.vehicle</field>
     <field name="inherit_id" ref="fleet.fleet_vehicle_view_form"/>
     <field name="arch" type="xml">
-        <!-- CORRECCIÓN: Usamos 'driver_id' como ancla porque existe en la vista original.
-             Luego colocamos NUESTROS dos nuevos campos (customer_id y maintenance_contract_id) después de él. -->
+                <!-- CORRECCIÓN: Usamos 'driver_id' como ancla porque existe en la vista original.
+                Luego colocamos NUESTROS dos nuevos campos (customer_id y maintenance_contract_id) después de él. -->
             <xpath expr="//field[@name='driver_id']" position="before">
                 <field name="customer_id" widget="many2one_avatar"/>
                 <field name="maintenance_contract_id" context="{'default_partner_id': customer_id}"/>

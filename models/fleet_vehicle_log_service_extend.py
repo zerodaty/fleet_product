@@ -308,44 +308,100 @@ class FleetVehicleLogServices(models.Model):
     #-------------------------------------------
     # Nuevos Metodos para el 5.0 MODIFICACIONES 
     #-------------------------------------------------
+    # En la clase FleetVehicleLogServices de tu archivo .py
+
     def action_in_progress(self):
-        """ Cambia el estado del servicio a 'En Curso'. """
+        """ Cambia el estado del servicio a 'En Curso' y actualiza el estado operativo del vehículo. """
         self.ensure_one()
-        self.write({'state': 'running'})
-        if self.vehicle_id.operational_state_id.id == self.env.ref('fleet_product.fleet_vehicle_state_available').id:
-            state_in_workshop = self.env.ref('fleet_product.fleet_vehicle_state_in_workshop')
+
+        state_available = self.env.ref('fleet_product.fleet_vehicle_state_available')
+        state_in_workshop = self.env.ref('fleet_product.fleet_vehicle_state_in_workshop')
+
+        # [CORRECCIÓN CLAVE]: Nos aseguramos de leer y escribir en NUESTRO campo 'operational_state_id'.
+        if self.vehicle_id.operational_state_id == state_available:
             self.vehicle_id.write({'operational_state_id': state_in_workshop.id})
+
+        self.write({'state': 'running'})
         return True
 
     def action_done(self):
-        """ Finaliza el servicio. """
+        """ Finaliza el servicio y, si es el último, actualiza el estado operativo del vehículo. """
         self.ensure_one()
-        # Validación: No se puede finalizar sin haber creado la documentación para el cliente
         if not self.sale_order_id:
-            # Aquí podríamos crear un wizard, pero para empezar, un UserError es más rápido y cumple la función.
             raise UserError("No se puede finalizar este servicio. Primero debe generar el 'Presupuesto' para el cliente.")
+
+        vehicle = self.vehicle_id
         self.write({'state': 'done'})
-        if self.vehicle_id.operational_state_id.id == self.env.ref('fleet_product.fleet_vehicle_state_available').id:
-            state_in_workshop = self.env.ref('fleet_product.fleet_vehicle_state_in_workshop')
-            self.vehicle_id.write({'operational_state_id': state_in_workshop.id})
+
+        # Refrescamos el campo para obtener el valor actualizado después de la escritura
+        vehicle.invalidate_recordset(['active_service_count'])
+
+        if vehicle.active_service_count == 0:
+            state_available = self.env.ref('fleet_product.fleet_vehicle_state_available')
+            # [CORRECCIÓN CLAVE]: Escribimos en NUESTRO campo 'operational_state_id'.
+            vehicle.write({'operational_state_id': state_available.id})
+
         return True
-        
 
     def action_cancel(self):
-        """ Cancela el servicio y los documentos asociados. """
-        # Este método puede operar en múltiples registros a la vez si se quisiera
+        """ Cancela el servicio y los documentos asociados, y revisa el estado operativo del vehículo. """
         for service in self:
-            
-            # Si hay un pedido de venta principal, lo cancelamos.
+            vehicle = service.vehicle_id
+
+            # Cancelamos los SOs
             if service.sale_order_id and service.sale_order_id.state != 'cancel':
                 service.sale_order_id.action_cancel()
-            
-            # ¡ACTUALIZACIÓN 5.0! Ahora también cancela el SO de la aseguradora.
             if service.insurer_sale_order_id and service.insurer_sale_order_id.state != 'cancel':
                service.insurer_sale_order_id.action_cancel()
-            
+
             service.write({'state': 'cancelled'})
+
+            vehicle.invalidate_recordset(['active_service_count'])
+            if vehicle.active_service_count == 0:
+                state_available = self.env.ref('fleet_product.fleet_vehicle_state_available')
+                # [CORRECCIÓN CLAVE]: Escribimos en NUESTRO campo 'operational_state_id'.
+                vehicle.write({'operational_state_id': state_available.id})
+
         return True
+
+    # def action_in_progress(self):
+    #     """ Cambia el estado del servicio a 'En Curso'. """
+    #     self.ensure_one()
+    #     self.write({'state': 'running'})
+    #     if self.vehicle_id.operational_state_id.id == self.env.ref('fleet_product.fleet_vehicle_state_available').id:
+    #         state_in_workshop = self.env.ref('fleet_product.fleet_vehicle_state_in_workshop')
+    #         self.vehicle_id.write({'operational_state_id': state_in_workshop.id})
+    #     return True
+
+    # def action_done(self):
+    #     """ Finaliza el servicio. """
+    #     self.ensure_one()
+    #     # Validación: No se puede finalizar sin haber creado la documentación para el cliente
+    #     if not self.sale_order_id:
+    #         # Aquí podríamos crear un wizard, pero para empezar, un UserError es más rápido y cumple la función.
+    #         raise UserError("No se puede finalizar este servicio. Primero debe generar el 'Presupuesto' para el cliente.")
+    #     self.write({'state': 'done'})
+    #     if self.vehicle_id.operational_state_id.id == self.env.ref('fleet_product.fleet_vehicle_state_available').id:
+    #         state_in_workshop = self.env.ref('fleet_product.fleet_vehicle_state_in_workshop')
+    #         self.vehicle_id.write({'operational_state_id': state_in_workshop.id})
+    #     return True
+        
+
+    # def action_cancel(self):
+    #     """ Cancela el servicio y los documentos asociados. """
+    #     # Este método puede operar en múltiples registros a la vez si se quisiera
+    #     for service in self:
+            
+    #         # Si hay un pedido de venta principal, lo cancelamos.
+    #         if service.sale_order_id and service.sale_order_id.state != 'cancel':
+    #             service.sale_order_id.action_cancel()
+            
+    #         # ¡ACTUALIZACIÓN 5.0! Ahora también cancela el SO de la aseguradora.
+    #         if service.insurer_sale_order_id and service.insurer_sale_order_id.state != 'cancel':
+    #            service.insurer_sale_order_id.action_cancel()
+            
+    #         service.write({'state': 'cancelled'})
+    #     return True
     
       # --- MÉTODO COMPUTE PARA EL BOTÓN INTELIGENTE MODIFICACION 5.0---
     def _compute_sale_order_count(self):
